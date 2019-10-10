@@ -267,13 +267,31 @@ param(
             Create PKI Certificates using Lets Encrypt for Azure Stack and validates them for usage
 
         .DESCRIPTION
-            Uses the Posh-Acme module to create compatible Lets Encrypt PKI certificates for Azure STack.  Used in conjunction with an Azure DNS zone 
+            Uses the Posh-Acme module to create compatible Lets Encrypt PKI certificates for Azure Stack.  Used in conjunction with an Azure DNS zone 
 
         .PARAMETER RegionName
-            The Azure Stack region name to generate the certificates for.
+            The Azure Stack region name to generate the certificates for. e.g. local
+
+        .PARAMETER ServicePrincpial
+            The Service Princiapl GUID that has access to the DNS Zone.
+
+        .PARAMETER ServicePrincpialSecret
+            The Service Princiapl Secret.
+
+        .PARAMETER pfxPass
+            Password for PFX files.
+
+        .PARAMETER SubscriptionId
+            SubscriptionId for the Azure Subscription hosting the DNS Zone.
+
+        .PARAMETER TenantId
+            TenantId for the Azure AD Tenant.
+
+        .PARAMETER CertPath
+            Path to store the generated certificates.
 
         .PARAMETER FQDN
-            The FQDN for the Azure Stack deployment.
+            The FQDN for the Azure Stack deployment.  e.g. azurestack.external
 
         .PARAMETER Staging
             If specified, uses the Lets Encrypt staging environment for testing purposes.  It is not rate limited, so is preferrable to use this switch prior to moving to Porduction.
