@@ -116,6 +116,7 @@ function New-AzsDnsCaaRecords {
             'SQLAdapter'="dbadapter.$RegionName";
             'AppSvcWebDefault'="appservice.$RegionName";
             'AppSvcsso'="sso.appservice.$RegionName";
+            'AppSvcscm'="scm.appservice.$RegionName";
             'AppSvcftp'="ftp.appservice.$RegionName";
             'AppSvcapi'="api.appservice.$RegionName";
             'cloudapp'="$regionName.cloudapp";
