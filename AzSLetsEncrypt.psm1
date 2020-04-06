@@ -121,9 +121,6 @@ function New-AzsDnsCaaRecords {
             'AppSvcapi'="api.appservice.$RegionName";
             'cloudapp'="$regionName.cloudapp";
     }
-        
-
-
 
     Get-AzureRMDnsRecordSet -ResourceGroupName $ResourceGroup -ZoneName $FQDN -RecordType CAA
 
@@ -135,7 +132,7 @@ function New-AzsDnsCaaRecords {
 
     If ($PaaS) {
         Create-CaaRecord -ep $PaasEndpoints -FQDN $FQDN -ResourceGroup $ResourceGroup
-}
+    }
 }
 
 function New-AzsPkiLECertificates {
@@ -183,8 +180,11 @@ param(
 
     $DNSZone = "$RegionName.$FQDN"
     $secPfxPass = ConvertTo-SecureString -AsPlainText $PfxPass -Force
-    $CoreCertPath = "$CertPath\Core"
-    $PaaSCertPath = "$CertPath\PaaS"
+    $CoreCertPath = "$CertPath\Deployment"
+    $AppServicesCertPath = "$CertPath\AppServices"
+    $DBAdapterCertPath = "$CertPath\DBAdapter"
+    $EventHubsCertPath = "$CertPath\EventHubs"
+    $IoTHubCertPath = "$CertPath\IoTHub"
 
 
     $SpPassword = ConvertTo-SecureString $ServicePrincipalSecret -AsPlainText -Force
@@ -224,42 +224,70 @@ param(
         New-Item -ItemType Directory -Path $CertPath
     }
 
-    new-AzsPACert $AzsCommmonEndpoints -Path $CoreCertPath -azParams $azParams $Force
-    if ($ADFS) {
-        new-AzsPACert $AzsADFSEndpoints -Path $CoreCertPath -azParams $azParams $Force
-        write-debug "Testing ADFS Certificates"
-        Invoke-AzsCertificateValidation -CertificatePath $CoreCertPath -pfxPassword $secPfxPass -RegionName $RegionName -FQDN $FQDN -IdentitySystem ADFS 
-    }
-    else {
-        # Validate the Certs for Azs
-        write-debug "Testing AAD Certificates"
-        Invoke-AzsCertificateValidation -CertificatePath $CoreCertPath -pfxPassword $secPfxPass -RegionName $RegionName -FQDN $FQDN -IdentitySystem AAD 
-    }
+    # Required certificates
+    # new-AzsPACert $AzsCommmonEndpoints -Path $CoreCertPath -azParams $azParams $Force
+    # if ($ADFS) {
+    #     new-AzsPACert $AzsADFSEndpoints -Path $CoreCertPath -azParams $azParams $Force
+    #     write-debug "Testing ADFS Certificates"
+    #     Invoke-AzsCertificateValidation -CertificatePath $CoreCertPath -pfxPassword $secPfxPass -RegionName $RegionName -FQDN $FQDN -IdentitySystem ADFS 
+    # }
+    # else {
+    #     # Validate the Certs for Azs
+    #     write-debug "Testing AAD Certificates"
+    #     Invoke-AzsCertificateValidation -CertificatePath $CoreCertPath -pfxPassword $secPfxPass -RegionName $RegionName -FQDN $FQDN -IdentitySystem AAD 
+    # }
 
 
     If ($PaaS) {
     
-        #Create Certs for all possible PaaS endpoints as there is no cost :)
-        $AZSPaasEndPoints = @{
-            'PaaSDBCert'="*.dbadapter.$DNSZone,dbadapter.$DNSZone";
-            'PaaSDefaultCert'="*.appservice.$DNSZone,*.scm.appservice.$DNSZone,*.sso.appservice.$DNSZone";
-            'PaaSAPICert'="api.appservice.$DNSZone";
-            'PaaSFTPCert'="ftp.appservice.$DNSZone";
-            'PaaSSSOCert'="sso.appservice.$DNSZone";
+        # AppService
+        $AppServiceEndPoints = @{
+            'API'="api.appservice.$DNSZone";
+            'DefaultDomain'="*.appservice.$DNSZone,*.scm.appservice.$DNSZone,*.sso.appservice.$DNSZone";
+            'Identity'="sso.appservice.$DNSZone";
+            'Publishing'="ftp.appservice.$DNSZone";
         }
+
+        new-AzsPACert $AppServiceEndPoints -Path $AppServicesCertPath -azParams $azParams $Force
+
+
+        # #Create Certs for all possible PaaS endpoints as there is no cost :)
+        # $AZSPaasEndPoints = @{
+        #     'PaaSDBCert'="*.dbadapter.$DNSZone,dbadapter.$DNSZone";
+        #     'PaaSDefaultCert'="*.appservice.$DNSZone,*.scm.appservice.$DNSZone,*.sso.appservice.$DNSZone";
+        #     'PaaSAPICert'="api.appservice.$DNSZone";
+        #     'PaaSFTPCert'="ftp.appservice.$DNSZone";
+        #     'PaaSSSOCert'="sso.appservice.$DNSZone";
+        # }
     
-        new-AzsPACert $AZSPaasEndPoints -Path $PaaSCertPath -LegacyCert -azParams $azParams $Force
-        $PaaSCertificates = @{}
-        foreach ($key in $AZSPaasEndPoints.Keys) {
-            $passHash = @{
-                'pfxPath'= "$PaaSCertPath\$key\cert.pfx";
-                'pfxPassword' = $secPfxPass
-            }
-            $PaaSCertificates.Add($key,$passHash)
-            write-host "$PaaSCertPath\$key\cert.pfx"
-        }
+        # new-AzsPACert $AZSPaasEndPoints -Path $PaaSCertPath -LegacyCert -azParams $azParams $Force
+        # $PaaSCertificates = @{}
+        # foreach ($key in $AZSPaasEndPoints.Keys) {
+        #     $passHash = @{
+        #         'pfxPath'= "$PaaSCertPath\$key\cert.pfx";
+        #         'pfxPassword' = $secPfxPass
+        #     }
+        #     $PaaSCertificates.Add($key,$passHash)
+        #     write-host "$PaaSCertPath\$key\cert.pfx"
+        # }
     
-        Invoke-AzsCertificateValidation -PaaSCertificates $PaaSCertificates -RegionName $RegionName -FQDN $FQDN
+#        Invoke-AzsCertificateValidation -PaaSCertificates $PaaSCertificates -RegionName $RegionName -FQDN $FQDN
+
+        # App Services
+        Write-Host "Validating AppServices"
+        Invoke-AzsCertificateValidation -CertificateType AppServices -CertificatePath $AppServicesCertPath -pfxPassword $secPfxPass -RegionName $RegionName -FQDN $FQDN
+
+        # # DBAdapter
+        # Write-Host "Validating DBAdapter"
+        # Invoke-AzsCertificateValidation -CertificateType DBAdapter -CertificatePath C:\Certificates\DBAdapter -pfxPassword $pfxPassword -RegionName $RegionName -FQDN $FQDN
+
+        # # EventHubs
+        # Write-Host "Validating EventHubs"
+        # Invoke-AzsCertificateValidation -CertificateType EventHubs -CertificatePath C:\Certificates\EventHubs -pfxPassword $pfxPassword -RegionName $RegionName -FQDN $FQDN
+
+        # # IoTHub
+        # Write-Host "Validating IoTHub"
+        # Invoke-AzsCertificateValidation -CertificateType IoTHub -CertificatePath C:\Certificates\IoTHub -pfxPassword $pfxPassword -RegionName $RegionName -FQDN $FQDN
     }
 
 
