@@ -1,6 +1,8 @@
 #Requires -RunAsAdministrator
 #Requires -Modules @{'ModuleName'='Posh-Acme';'ModuleVersion'='3.5.0'},@{'ModuleName'='AzureRM.Dns';'ModuleVersion'='5.0.3'} ,Microsoft.AzureStack.ReadinessChecker
-function new-AzsPACert ($AzsCert, [switch]$LegacyCert, $Path, $azParams, $Force) {
+function new-AzsPACert ($AzsCert, [switch]$LegacyCert, $Path, $azParams, $Force, $pfxPass) {
+    $secPfxPass = ConvertTo-SecureString -AsPlainText $pfxPass -Force
+
     foreach ($Key in $AzsCert.Keys) {
         if (-not (Test-Path -Path "$Path\$Key")) {
             New-Item -ItemType Directory -Path "$Path\$Key"
@@ -29,17 +31,16 @@ function new-AzsPACert ($AzsCert, [switch]$LegacyCert, $Path, $azParams, $Force)
         Else {
 
             write-host "obtaining new Cert: $Cert"
-            #write-host "New-PACertificate $maindomain -DnsPlugin Azure -PluginArgs $azParams -AcceptTOS -PfxPass "$PfxPass""
+            #write-host "New-PACertificate $maindomain -DnsPlugin Azure -PluginArgs $azParams -AcceptTOS -PfxPass "$pfxPass""
             if ($Force) {
-                $LECert = New-PACertificate $maindomain -DnsPlugin Azure -PluginArgs $azParams -AcceptTOS -PfxPass "$PfxPass" -Force
+                $LECert = New-PACertificate $maindomain -DnsPlugin Azure -PluginArgs $azParams -AcceptTOS -PfxPass "$pfxPass" -Force
             }
             else {
-                $LECert = New-PACertificate $maindomain -DnsPlugin Azure -PluginArgs $azParams -AcceptTOS -PfxPass "$PfxPass"
+                $LECert = New-PACertificate $maindomain -DnsPlugin Azure -PluginArgs $azParams -AcceptTOS -PfxPass "$pfxPass"
             }
             if ($LegacyCert) {
                 # Create a CNG cert for PaaS RP.  Least hacky way to do it !
-                & cmd /c certutil.exe -f -p $PfxPass -csp "Microsoft Enhanced RSA and AES Cryptographic Provider" -importpfx $($LECert.PfxFile) 
-               
+                & cmd /c certutil.exe -f -p $pfxPass -csp "Microsoft Enhanced RSA and AES Cryptographic Provider" -importpfx $($LECert.PfxFile) 
             }
             else {
                Import-PfxCertificate -FilePath $LECert.PfxFile cert:\localMachine\my -Password $secPfxPass -Exportable
@@ -218,9 +219,9 @@ param(
     }
 
     # Deployment  certificates
-    new-AzsPACert $AzsCommmonEndpoints -Path $CoreCertPath -azParams $azParams $Force
+    new-AzsPACert $AzsCommmonEndpoints -Path $CoreCertPath -azParams $azParams $Force $pfxPass
     if ($ADFS) {
-        new-AzsPACert $AzsADFSEndpoints -Path $CoreCertPath -azParams $azParams $Force
+        new-AzsPACert $AzsADFSEndpoints -Path $CoreCertPath -azParams $azParams $Force $pfxPass
     }
 
     if ($PaaS) {
@@ -232,7 +233,7 @@ param(
             'Publishing'="ftp.appservice.$DNSZone";
         }
 
-        new-AzsPACert $AppServiceEndPoints -Path $AppServicesCertPath -LegacyCert -azParams $azParams $Force
+        new-AzsPACert $AppServiceEndPoints -Path $AppServicesCertPath -LegacyCert -azParams $azParams $Force $pfxPass
         Write-Host "Validating AppServices"
 
         # DBAdapter
@@ -240,7 +241,7 @@ param(
             'DBAdapter'="*.dbadapter.$DNSZone,dbadapter.$DNSZone";
         }
 
-        new-AzsPACert $DBAdapterEndPoints -Path $CertPath -LegacyCert -azParams $azParams $Force
+        new-AzsPACert $DBAdapterEndPoints -Path $CertPath -LegacyCert -azParams $azParams $Force $pfxPass
         Write-Host "Validating DBAdapter"
 
         # EventHubs
@@ -248,7 +249,7 @@ param(
             'EventHubs'="*.eventhub.$DNSZone,eventhub.$DNSZone";
         }
 
-        new-AzsPACert $EventHubsEndPoints -Path $CertPath -LegacyCert -azParams $azParams $Force
+        new-AzsPACert $EventHubsEndPoints -Path $CertPath -LegacyCert -azParams $azParams $Force $pfxPass
         Write-Host "Validating EventHubs"
 
         # IoTHub
@@ -256,7 +257,7 @@ param(
             'IoTHub'="*.mgmtiothub.$DNSZone,mgmtiothub.$DNSZone";
         }
 
-        new-AzsPACert $IoTHubEndPoints -Path $CertPath -LegacyCert -azParams $azParams $Force
+        new-AzsPACert $IoTHubEndPoints -Path $CertPath -LegacyCert -azParams $azParams $Force $pfxPass
         Write-Host "Validating IoTHub"
     }
 
